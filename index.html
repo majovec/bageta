@@ -21,7 +21,15 @@
     .btn-danger { background: #ef4444; color: white; }
     .btn-primary { background: var(--primary); color: white; width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; margin-top: 5px; }
     
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; }
+    
+    /* Rozbalovací hlavička karta */
+    .card-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; background: #ffffff; }
+    .card-header:active { background: #f1f5f9; }
+    .arrow { font-size: 0.8rem; transition: transform 0.2s ease; color: #64748b; }
+    .arrow.open { transform: rotate(180deg); }
+
+    .card-content { padding: 0 15px 15px 15px; border-top: 1px solid var(--border); }
     .details { margin-top: 10px; font-size: 0.9rem; line-height: 1.4; }
     
     .admin-only-box { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 10px; border-radius: 6px; margin-top: 10px; }
@@ -57,7 +65,7 @@
     </div>
 
     <!-- Admin Formulář pro Zákazníka -->
-    <div id="adminCustomerPanel" class="card hidden">
+    <div id="adminCustomerPanel" class="card hidden" style="padding: 15px;">
       <h3>➕ Přidat Zákazníka</h3>
       <label>Den rozvozu:</label>
       <select id="custDay">
@@ -88,7 +96,7 @@
 
   <!-- ================= ZÁLOŽKA 2: POZNÁMKY ================= -->
   <div id="tabPoznamky" class="hidden">
-    <div id="adminNotesPanel" class="card hidden">
+    <div id="adminNotesPanel" class="card hidden" style="padding: 15px;">
       <h3>➕ Přidat Novou Poznámku</h3>
       <textarea id="noteInput" rows="3" placeholder="Napiš poznámku pro kluky..."></textarea>
       <button class="btn btn-primary" onclick="addNote()">Uložit Poznámku</button>
@@ -114,14 +122,14 @@
 
   const daysOfWeek = ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota'];
   const todayIndex = new Date().getDay();
-  let selectedDay = daysOfWeek[todayIndex]; // Automaticky nastaví dnešní den
+  let selectedDay = daysOfWeek[todayIndex];
 
-  let customers = JSON.parse(localStorage.getItem('bagety_customers_v2')) || [
+  let customers = JSON.parse(localStorage.getItem('bagety_customers_v3')) || [
     { day: "Pondělí", name: "OMV Karlovy Vary", address: "Plzeňská 12, KV", contact: "+420 777 111 222", items: "Nuggety: 5ks\nStrips: 5ks", returns: "Vratka 12 %" },
-    { day: "Úterý", name: "Shell Ostrov", address: "Jáchymovská 5", contact: "+420 608 000 111", items: "Bagety Smaženka: 10ks", returns: "Vratka 0 %" }
+    { day: "Pondělí", name: "Benzina Sokolov", address: "Chebská 88", contact: "+420 600 123 456", items: "Bagety Pikant: 8ks", returns: "Vratka 0 %" }
   ];
   
-  let notes = JSON.parse(localStorage.getItem('bagety_notes_v2')) || [
+  let notes = JSON.parse(localStorage.getItem('bagety_notes_v3')) || [
     "Kluci, nezapomeňte zkontrolovat ledničky na všech pobočkách!"
   ];
 
@@ -153,8 +161,14 @@
     render();
   }
 
+  function toggleCard(id) {
+    const content = document.getElementById(`content-${id}`);
+    const arrow = document.getElementById(`arrow-${id}`);
+    content.classList.toggle('hidden');
+    arrow.classList.toggle('open');
+  }
+
   function render() {
-    // 1. Zákazníci pro VYBRANÝ DEN
     const custList = document.getElementById('customerList');
     custList.innerHTML = `<h3 style="margin-top:0; color:#475569;">Rozvoz na: ${selectedDay}</h3>`;
     
@@ -164,41 +178,48 @@
       custList.innerHTML += `<p style="color:#94a3b8; font-style:italic;">Na tento den nemáte žádné zákazníky.</p>`;
     } else {
       filteredCustomers.forEach((c, index) => {
-        // Zjištění reálného indexu v hlavním poli
         const realIndex = customers.indexOf(c);
         
         custList.innerHTML += `
           <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong style="font-size:1.1rem;">${c.name}</strong>
-              ${isAdmin ? `<button class="btn btn-danger" onclick="deleteCustomer(${realIndex})">Smazat</button>` : ''}
-            </div>
-            <div class="details">
-              <p style="margin:4px 0;">📍 <strong>Adresa:</strong> ${c.address || 'Neuvedena'}</p>
-              <p style="margin:4px 0;">📞 <strong>Kontakt:</strong> ${c.contact || 'Neuveden'}</p>
-              
-              <div style="background:#f1f5f9; padding:8px; border-radius:6px; margin-top:8px; white-space:pre-wrap;">
-                <strong>📦 Počty kusů:</strong><br>${c.items}
+            <!-- Tuto hlavičku uvidí uživatel vždy, po kliku se rozbalí zbytek -->
+            <div class="card-header" onclick="toggleCard(${realIndex})">
+              <strong style="font-size:1.05rem;">${c.name}</strong>
+              <div style="display:flex; align-items:center; gap:10px;">
+                ${isAdmin ? `<button class="btn btn-danger" style="padding:3px 8px; font-size:0.75rem;" onclick="event.stopPropagation(); deleteCustomer(${realIndex})">Smazat</button>` : ''}
+                <span class="arrow" id="arrow-${realIndex}">▼</span>
               </div>
+            </div>
 
-              ${isAdmin && c.returns ? `
-                <div class="admin-only-box">
-                  <strong>🔒 ADMIN INFO (Vratkovost):</strong><br>${c.returns}
+            <!-- Detail karty (ve výchozím stavu skrytý) -->
+            <div class="card-content hidden" id="content-${realIndex}">
+              <div class="details">
+                <p style="margin:4px 0;">📍 <strong>Adresa:</strong> ${c.address || 'Neuvedena'}</p>
+                <p style="margin:4px 0;">📞 <strong>Kontakt:</strong> ${c.contact || 'Neuveden'}</p>
+                
+                <div style="background:#f1f5f9; padding:8px; border-radius:6px; margin-top:8px; white-space:pre-wrap;">
+                  <strong>📦 Počty kusů:</strong><br>${c.items}
                 </div>
-              ` : ''}
+
+                ${isAdmin && c.returns ? `
+                  <div class="admin-only-box">
+                    <strong>🔒 ADMIN INFO (Vratkovost):</strong><br>${c.returns}
+                  </div>
+                ` : ''}
+              </div>
             </div>
           </div>
         `;
       });
     }
 
-    // 2. Poznámky
+    // Poznámky
     const notesList = document.getElementById('notesList');
     notesList.innerHTML = '';
     
     notes.forEach((n, index) => {
       notesList.innerHTML += `
-        <div class="card" style="background: #fef3c7; border-color: #fde68a;">
+        <div class="card" style="background: #fef3c7; border-color: #fde68a; padding: 15px;">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <p style="margin:0; color: #92400e; white-space:pre-wrap; font-weight: 500;">${n}</p>
             ${isAdmin ? `<button class="btn btn-danger" style="padding:2px 6px; font-size:0.7rem;" onclick="deleteNote(${index})">✕</button>` : ''}
@@ -255,7 +276,7 @@
     if (!name) return alert("Vyplňte název zákazníka");
 
     customers.push({ day, name, address, contact, items, returns });
-    localStorage.setItem('bagety_customers_v2', JSON.stringify(customers));
+    localStorage.setItem('bagety_customers_v3', JSON.stringify(customers));
     
     document.getElementById('custName').value = '';
     document.getElementById('custAddress').value = '';
@@ -269,7 +290,7 @@
   function deleteCustomer(index) {
     if (confirm("Opravdu smazat zákazníka?")) {
       customers.splice(index, 1);
-      localStorage.setItem('bagety_customers_v2', JSON.stringify(customers));
+      localStorage.setItem('bagety_customers_v3', JSON.stringify(customers));
       render();
     }
   }
@@ -279,7 +300,7 @@
     if (!text) return alert("Napište text poznámky");
 
     notes.push(text);
-    localStorage.setItem('bagety_notes_v2', JSON.stringify(notes));
+    localStorage.setItem('bagety_notes_v3', JSON.stringify(notes));
     document.getElementById('noteInput').value = '';
     render();
   }
@@ -287,7 +308,7 @@
   function deleteNote(index) {
     if (confirm("Opravdu smazat poznámku?")) {
       notes.splice(index, 1);
-      localStorage.setItem('bagety_notes_v2', JSON.stringify(notes));
+      localStorage.setItem('bagety_notes_v3', JSON.stringify(notes));
       render();
     }
   }
