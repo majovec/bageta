@@ -20,10 +20,10 @@
     .btn { background: white; color: var(--primary); border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
     .btn-danger { background: #ef4444; color: white; }
     .btn-primary { background: var(--primary); color: white; width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; margin-top: 5px; }
-    
+    .btn-nav { background: #10b981; color: white; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; margin-top: 6px; }
+
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; }
     
-    /* Rozbalovací hlavička karta */
     .card-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; background: #ffffff; }
     .card-header:active { background: #f1f5f9; }
     .arrow { font-size: 0.8rem; transition: transform 0.2s ease; color: #64748b; }
@@ -80,7 +80,7 @@
       <label>Název (např. OMV Karlovy Vary):</label>
       <input type="text" id="custName">
       <label>Adresa:</label>
-      <input type="text" id="custAddress">
+      <input type="text" id="custAddress" placeholder="ulice, město">
       <label>Kontakt / Telefon:</label>
       <input type="text" id="custContact">
       <label>Kusy pro řidiče (např. Nuggety 5ks, Strips 5ks):</label>
@@ -90,7 +90,7 @@
       <button class="btn btn-primary" onclick="addCustomer()">Uložit Zákazníka</button>
     </div>
 
-    <!-- Seznam Zákazníků pro vybraný den -->
+    <!-- Seznam Zákazníků -->
     <div id="customerList"></div>
   </div>
 
@@ -124,12 +124,12 @@
   const todayIndex = new Date().getDay();
   let selectedDay = daysOfWeek[todayIndex];
 
-  let customers = JSON.parse(localStorage.getItem('bagety_customers_v3')) || [
-    { day: "Pondělí", name: "OMV Karlovy Vary", address: "Plzeňská 12, KV", contact: "+420 777 111 222", items: "Nuggety: 5ks\nStrips: 5ks", returns: "Vratka 12 %" },
-    { day: "Pondělí", name: "Benzina Sokolov", address: "Chebská 88", contact: "+420 600 123 456", items: "Bagety Pikant: 8ks", returns: "Vratka 0 %" }
+  let customers = JSON.parse(localStorage.getItem('bagety_customers_v4')) || [
+    { day: "Pondělí", name: "OMV Karlovy Vary", address: "Plzeňská 12, Karlovy Vary", contact: "+420 777 111 222", items: "Nuggety: 5ks\nStrips: 5ks", returns: "Vratka 12 %" },
+    { day: "Pondělí", name: "Benzina Sokolov", address: "Chebská 88, Sokolov", contact: "+420 600 123 456", items: "Bagety Pikant: 8ks", returns: "Vratka 0 %" }
   ];
   
-  let notes = JSON.parse(localStorage.getItem('bagety_notes_v3')) || [
+  let notes = JSON.parse(localStorage.getItem('bagety_notes_v4')) || [
     "Kluci, nezapomeňte zkontrolovat ledničky na všech pobočkách!"
   ];
 
@@ -143,7 +143,7 @@
     btns.forEach(btn => {
       if(btn.innerText === getShortDay(selectedDay)) {
         btn.classList.add('active');
-      } else { 
+      } else {
         btn.classList.remove('active');
       }
     });
@@ -180,9 +180,11 @@
       filteredCustomers.forEach((c, index) => {
         const realIndex = customers.indexOf(c);
         
+        // Odkaz na Google Mapy pro navigaci
+        const navUrl = c.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}` : '#';
+
         custList.innerHTML += `
           <div class="card">
-            <!-- Tuto hlavičku uvidí uživatel vždy, po kliku se rozbalí zbytek -->
             <div class="card-header" onclick="toggleCard(${realIndex})">
               <strong style="font-size:1.05rem;">${c.name}</strong>
               <div style="display:flex; align-items:center; gap:10px;">
@@ -191,12 +193,13 @@
               </div>
             </div>
 
-            <!-- Detail karty (ve výchozím stavu skrytý) -->
             <div class="card-content hidden" id="content-${realIndex}">
               <div class="details">
                 <p style="margin:4px 0;">📍 <strong>Adresa:</strong> ${c.address || 'Neuvedena'}</p>
                 <p style="margin:4px 0;">📞 <strong>Kontakt:</strong> ${c.contact || 'Neuveden'}</p>
                 
+                ${c.address ? `<a href="${navUrl}" target="_blank" class="btn-nav">🧭 Navigovat na adresu</a>` : ''}
+
                 <div style="background:#f1f5f9; padding:8px; border-radius:6px; margin-top:8px; white-space:pre-wrap;">
                   <strong>📦 Počty kusů:</strong><br>${c.items}
                 </div>
@@ -213,7 +216,6 @@
       });
     }
 
-    // Poznámky
     const notesList = document.getElementById('notesList');
     notesList.innerHTML = '';
     
@@ -276,7 +278,7 @@
     if (!name) return alert("Vyplňte název zákazníka");
 
     customers.push({ day, name, address, contact, items, returns });
-    localStorage.setItem('bagety_customers_v3', JSON.stringify(customers));
+    localStorage.setItem('bagety_customers_v4', JSON.stringify(customers));
     
     document.getElementById('custName').value = '';
     document.getElementById('custAddress').value = '';
@@ -290,7 +292,7 @@
   function deleteCustomer(index) {
     if (confirm("Opravdu smazat zákazníka?")) {
       customers.splice(index, 1);
-      localStorage.setItem('bagety_customers_v3', JSON.stringify(customers));
+      localStorage.setItem('bagety_customers_v4', JSON.stringify(customers));
       render();
     }
   }
@@ -300,7 +302,7 @@
     if (!text) return alert("Napište text poznámky");
 
     notes.push(text);
-    localStorage.setItem('bagety_notes_v3', JSON.stringify(notes));
+    localStorage.setItem('bagety_notes_v4', JSON.stringify(notes));
     document.getElementById('noteInput').value = '';
     render();
   }
@@ -308,7 +310,7 @@
   function deleteNote(index) {
     if (confirm("Opravdu smazat poznámku?")) {
       notes.splice(index, 1);
-      localStorage.setItem('bagety_notes_v3', JSON.stringify(notes));
+      localStorage.setItem('bagety_notes_v4', JSON.stringify(notes));
       render();
     }
   }
