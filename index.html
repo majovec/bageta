@@ -118,7 +118,7 @@
 
 <script>
   let isAdmin = false;
-  const ADMIN_PIN = "1234";
+  const ADMIN_PIN = "kvary";
 
   const daysOfWeek = ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota'];
   const todayIndex = new Date().getDay();
@@ -143,7 +143,7 @@
     btns.forEach(btn => {
       if(btn.innerText === getShortDay(selectedDay)) {
         btn.classList.add('active');
-      } else {
+      } else { 
         btn.classList.remove('active');
       }
     });
