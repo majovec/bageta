@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rozvoz Baget - Přehled Prodeje</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <style>
+    :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+    h1 { margin: 0; font-size: 1.2rem; }
+    .btn { background: white; color: var(--primary); border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-primary { background: var(--primary); color: white; width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .badge { background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+    .notice-board { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: 12px; border-radius: 8px; margin-bottom: 15px; }
+    .details { margin-top: 10px; font-size: 0.9rem; line-height: 1.4; }
+    input, textarea { width: 100%; padding: 8px; margin: 6px 0 12px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>📋 Rozvoz Baget</h1>
+    <button id="authBtn" class="btn" onclick="toggleAdmin()">Přihlásit Admina</button>
+  </header>
+
+  <!-- Nástěnka s poznámkami -->
+  <div class="notice-board">
+    <strong>📌 Interní poznámky pro řidiče:</strong>
+    <p id="notesText" style="margin: 5px 0 0 0;">Kluci, nezapomeňte kontrolovat ledničky!</p>
+    <div id="adminNotesForm" class="hidden" style="margin-top: 10px;">
+      <textarea id="notesInput" rows="2"></textarea>
+      <button class="btn btn-primary" onclick="saveNotes()">Uložit poznámku</button>
+    </div>
+  </div>
+
+  <!-- Formular pro pridani zakaznika (Admin) -->
+  <div id="adminPanel" class="card hidden">
+    <h3>➕ Přidat / Upravit Zákazníka</h3>
+    <label>Název (např. OMV Karlovy Vary):</label>
+    <input type="text" id="custName">
+    <label>Adresa:</label>
+    <input type="text" id="custAddress">
+    <label>Kontakt / Telefon:</label>
+    <input type="text" id="custContact">
+    <label>Zaznamenané kusy a vratky:</label>
+    <textarea id="custItems" placeholder="Nuggety: 5ks&#10;Strips: 5ks (Vratka 10%)"></textarea>
+    <button class="btn btn-primary" onclick="addCustomer()">Uložit Zákazníka</button>
+  </div>
+
+  <!-- Seznam zákazníků pro řidiče -->
+  <h2>Seznam Zákazníků</h2>
+  <div id="customerList"></div>
+</div>
+
+<script>
+  let isAdmin = false;
+  const ADMIN_PIN = "1234";
+
+  // Načtení dat z localStorage
+  let customers = JSON.parse(localStorage.getItem('pwa_customers')) || [
+    { id: 1, name: "OMV Karlovy Vary", address: "Plzeňská 12, KV", contact: "+420 777 111 222", items: "Nugety: 5ks\nStrips: 5ks (Vratka 5%)" }
+  ];
+  let internalNotes = localStorage.getItem('pwa_notes') || "Kluci, nezapomeňte kontrolovat ledničky na všech pobočkách!";
+
+  function render() {
+    // Vykreslení poznámek
+    document.getElementById('notesText').innerText = internalNotes;
+
+    // Vykreslení zákazníků
+    const list = document.getElementById('customerList');
+    list.innerHTML = '';
+    
+    customers.forEach((c, index) => {
+      list.innerHTML += `
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:1.1rem;">${c.name}</strong>
+            ${isAdmin ? `<button class="btn btn-danger" onclick="deleteCustomer(${index})">Smazat</button>` : ''}
+          </div>
+          <div class="details">
+            <p style="margin:4px 0;">📍 <strong>Adresa:</strong> ${c.address || 'Neuvedena'}</p>
+            <p style="margin:4px 0;">📞 <strong>Kontakt:</strong> ${c.contact || 'Neuveden'}</p>
+            <div style="background:#f1f5f9; padding:8px; border-radius:6px; margin-top:8px; whitespace-pre-wrap;">
+              <strong>📦 Počty kusů / Vratky:</strong><br>${c.items}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  function toggleAdmin() {
+    if (!isAdmin) {
+      const pin = prompt("Zadejte admin heslo:");
+      if (pin === ADMIN_PIN) {
+        isAdmin = true;
+        document.getElementById('authBtn').innerText = "Odhlásit Admina";
+        document.getElementById('adminPanel').classList.remove('hidden');
+        document.getElementById('adminNotesForm').classList.remove('hidden');
+        document.getElementById('notesInput').value = internalNotes;
+      } else {
+        alert("Špatné heslo!");
+      }
+    } else {
+      isAdmin = false;
+      document.getElementById('authBtn').innerText = "Přihlásit Admina";
+      document.getElementById('adminPanel').classList.add('hidden');
+      document.getElementById('adminNotesForm').classList.add('hidden');
+    }
+    render();
+  }
+
+  function addCustomer() {
+    const name = document.getElementById('custName').value;
+    const address = document.getElementById('custAddress').value;
+    const contact = document.getElementById('custContact').value;
+    const items = document.getElementById('custItems').value;
+
+    if (!name) return alert("Vyplňte název zákazníka");
+
+    customers.push({ name, address, contact, items });
+    localStorage.setItem('pwa_customers', JSON.stringify(customers));
+    
+    // Vyčištění formuláře
+    document.getElementById('custName').value = '';
+    document.getElementById('custAddress').value = '';
+    document.getElementById('custContact').value = '';
+    document.getElementById('custItems').value = '';
+
+    render();
+  }
+
+  function deleteCustomer(index) {
+    if (confirm("Opravdu chcete smazat tohoto zákazníka?")) {
+      customers.splice(index, 1);
+      localStorage.setItem('pwa_customers', JSON.stringify(customers));
+      render();
+    }
+  }
+
+  function saveNotes() {
+    internalNotes = document.getElementById('notesInput').value;
+    localStorage.setItem('pwa_notes', internalNotes);
+    render();
+  }
+
+  render();
+</script>
+</body>
+</html>
