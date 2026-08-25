@@ -24,7 +24,7 @@
     .btn-danger { background: #ef4444; color: white; }
     .btn-edit { background: #f59e0b; color: white; }
     .btn-move { background: #64748b; color: white; padding: 3px 8px; font-size: 0.8rem; }
-    .btn-primary { background: var(--primary); color: white; width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; margin-top: 5px; }
+    .btn-primary { background: var(--primary); color: white; width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; margin-top: 5px; cursor: pointer; }
     .btn-nav { background: #10b981; color: white; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; margin-top: 6px; }
 
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; }
@@ -56,6 +56,20 @@
     .cal-dots { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
     .cal-dot { width: 100%; height: 6px; border-radius: 3px; }
     .action-btns { display: flex; gap: 4px; align-items: center; }
+
+    /* CHAT STYLES */
+    #chatMessages { max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
+    .chat-msg { background: #f1f5f9; padding: 8px 12px; border-radius: 12px; max-width: 80%; align-self: flex-start; word-wrap: break-word; }
+    .chat-msg.mine { background: #dbeafe; align-self: flex-end; }
+    .chat-header { font-size: 0.75rem; font-weight: bold; margin-bottom: 3px; display: flex; justify-content: space-between; gap: 10px; }
+    .chat-time { font-size: 0.65rem; color: #64748b; font-weight: normal; }
+    .chat-body { font-size: 0.9rem; white-space: pre-wrap; }
+    .chat-img { max-width: 100%; border-radius: 8px; margin-top: 5px; cursor: pointer; }
+    .chat-audio { width: 100%; margin-top: 5px; }
+    .chat-input-bar { display: flex; gap: 5px; align-items: center; margin-top: 10px; }
+    .chat-btn-icon { background: #e2e8f0; border: none; border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; flex-shrink: 0; }
+    .chat-btn-icon.recording { background: #ef4444; color: white; animation: pulse 1s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
   </style>
 </head>
 <body>
@@ -108,9 +122,10 @@
   <div id="tabSmeny" class="hidden">
     <div id="adminDriverPanel" class="card hidden" style="padding: 15px;">
       <h3>👤 Správa Řidičů</h3>
-      <div style="display:flex; gap:10px;">
-        <input type="text" id="driverName" placeholder="Jméno" style="margin:0;">
-        <input type="color" id="driverColor" value="#2563eb" style="width:50px; height:38px; padding:2px; margin:0;">
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input type="text" id="driverName" placeholder="Jméno" style="margin:0; flex:1;">
+        <input type="password" id="driverPin" placeholder="PIN (4 čísla)" maxlength="4" style="margin:0; width:110px;">
+        <input type="color" id="driverColor" value="#2563eb" style="width:40px; height:38px; padding:2px; margin:0;">
       </div>
       <button class="btn btn-primary" onclick="addDriver()" style="margin-top:10px;">Přidat Řidiče</button>
       <div id="driversList" style="margin-top:10px;"></div>
@@ -141,27 +156,53 @@
     </div>
   </div>
 
-  <!-- POZNÁMKY -->
+  <!-- CHAT / INTERNÍ POZNÁMKY -->
   <div id="tabPoznamky" class="hidden">
-    <div id="adminNotesPanel" class="card hidden" style="padding: 15px;">
-      <h3>➕ Přidat Poznámku</h3>
-      <textarea id="noteInput" rows="3" placeholder="Napiš poznámku..."></textarea>
-      <button class="btn btn-primary" onclick="addNote()">Uložit Poznámku</button>
+    <div class="card" style="padding: 15px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="margin:0;">💬 Týmový Chat</h3>
+        <button class="btn" style="background:#e2e8f0; font-size:0.75rem;" onclick="requestNotificationPermission()">🔔 Povolit Notifikace</button>
+      </div>
+
+      <!-- Výběr profilu / Přihlášení řidiče -->
+      <div id="chatAuthBox" style="background:#f8fafc; border:1px solid #cbd5e1; padding:10px; border-radius:8px; margin-bottom:10px;">
+        <div id="loggedDriverInfo" class="hidden" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>Přihlášen jako: <strong id="loggedDriverName"></strong></span>
+          <button class="btn btn-danger" style="padding:3px 8px; font-size:0.75rem;" onclick="logoutDriver()">Změnit</button>
+        </div>
+        <div id="loginDriverForm" style="display:flex; gap:5px; align-items:center;">
+          <select id="selectChatDriver" style="margin:0;"><option value="">-- Vyber své jméno --</option></select>
+          <input type="password" id="inputChatPin" placeholder="PIN" maxlength="4" style="margin:0; width:70px;">
+          <button class="btn btn-primary" style="margin:0; width:auto;" onclick="loginDriver()">Vstoupit</button>
+        </div>
+      </div>
+
+      <!-- Zprávy -->
+      <div id="chatMessages"></div>
+
+      <!-- Zadaní zprávy -->
+      <div class="chat-input-bar">
+        <input type="file" id="fileInput" accept="image/*,video/*,application/pdf" class="hidden" onchange="uploadFile(this)">
+        <button class="chat-btn-icon" onclick="document.getElementById('fileInput').click()">📎</button>
+        <button class="chat-btn-icon" id="micBtn" onclick="toggleVoiceRecording()">🎤</button>
+        <input type="text" id="chatTextInput" placeholder="Napiš zprávu..." style="margin:0;" onkeypress="if(event.key==='Enter') sendTextMessage()">
+        <button class="btn btn-primary" style="margin:0; width:auto; padding:8px 15px;" onclick="sendTextMessage()">➤</button>
+      </div>
     </div>
-    <div id="notesList"></div>
   </div>
 </div>
 
 <div class="bottom-nav">
   <button class="nav-item active" id="btnTabTrasa" onclick="switchTab('trasa')"><span>📍 Trasa</span></button>
   <button class="nav-item" id="btnTabSmeny" onclick="switchTab('smeny')"><span>📅 Kalendář</span></button>
-  <button class="nav-item" id="btnTabPoznamky" onclick="switchTab('poznamky')"><span>📌 Poznámky</span></button>
+  <button class="nav-item" id="btnTabPoznamky" onclick="switchTab('poznamky')"><span>💬 Chat</span></button>
 </div>
 
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { getFirestore, doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDBbwPzYN49XMHM9vGx3jZFlCGX-Jamt2c",
@@ -175,32 +216,57 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const storage = getStorage(app);
 
   window.db = db;
   window.doc = doc;
   window.setDoc = setDoc;
+  window.storage = storage;
 
-  // Načítání v reálném čase
+  // Real-time synchronizace databáze
   onSnapshot(doc(db, "appData", "main"), (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.data();
       window.customers = data.customers || [];
-      window.notes = data.notes || [];
       window.drivers = data.drivers || [];
       window.shifts = data.shifts || {};
       window.render();
+      window.updateDriverDropdowns();
     } else {
       window.syncDataToFirebase();
     }
   });
 
+  // Real-time načítání chatu
+  const q = query(collection(db, "chat"), orderBy("timestamp", "asc"), limit(100));
+  onSnapshot(q, (snapshot) => {
+    let messages = [];
+    snapshot.forEach(doc => {
+      messages.push({ id: doc.id, ...doc.data() });
+    });
+    window.chatMessagesData = messages;
+    window.renderChatMessages();
+  });
+
   window.syncDataToFirebase = async function() {
     await setDoc(doc(db, "appData", "main"), {
       customers: window.customers,
-      notes: window.notes,
       drivers: window.drivers,
       shifts: window.shifts
     });
+  }
+
+  window.sendChatMessageToFirebase = async function(msgData) {
+    await addDoc(collection(db, "chat"), {
+      ...msgData,
+      timestamp: Date.now()
+    });
+  }
+
+  window.uploadFileToStorage = async function(file) {
+    const fileRef = ref(storage, 'chat_files/' + Date.now() + '_' + file.name);
+    await uploadBytes(fileRef, file);
+    return await getDownloadURL(fileRef);
   }
 </script>
 
@@ -216,13 +282,18 @@
   let selectedDateKey = null;
 
   window.customers = [];
-  window.notes = [];
   window.drivers = [];
   window.shifts = {};
+  window.chatMessagesData = [];
+
+  let currentDriver = JSON.parse(localStorage.getItem('rozvoz_driver') || 'null');
+  let mediaRecorder = null;
+  let audioChunks = [];
 
   function initDays() {
     document.getElementById('custDay').value = selectedDay;
     updateDayButtons();
+    checkDriverLogin();
   }
 
   function updateDayButtons() {
@@ -296,19 +367,6 @@
         `;
       });
     }
-
-    const notesList = document.getElementById('notesList');
-    notesList.innerHTML = '';
-    window.notes.forEach((n, index) => {
-      notesList.innerHTML += `
-        <div class="card" style="background: #fef3c7; border-color: #fde68a; padding: 15px;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <p style="margin:0; color: #92400e; white-space:pre-wrap; font-weight: 500;">${n}</p>
-            ${isAdmin ? `<button class="btn btn-danger" style="padding:2px 6px; font-size:0.7rem;" onclick="deleteNote(${index})">✕</button>` : ''}
-          </div>
-        </div>
-      `;
-    });
 
     renderCalendar();
   }
@@ -496,11 +554,13 @@
 
   function addDriver() {
     const name = document.getElementById('driverName').value;
+    const pin = document.getElementById('driverPin').value;
     const color = document.getElementById('driverColor').value;
-    if(!name) return alert("Zadejte jméno!");
+    if(!name || !pin) return alert("Zadejte jméno i 4místný PIN!");
 
-    window.drivers.push({ id: 'd_' + Date.now(), name, color });
+    window.drivers.push({ id: 'd_' + Date.now(), name, pin, color });
     document.getElementById('driverName').value = '';
+    document.getElementById('driverPin').value = '';
     window.syncDataToFirebase();
   }
 
@@ -508,6 +568,164 @@
     if(confirm("Smazat řidiče?")) {
       window.drivers = window.drivers.filter(d => d.id !== id);
       window.syncDataToFirebase();
+    }
+  }
+
+  // CHAT LOGIKA
+  window.updateDriverDropdowns = function() {
+    const select = document.getElementById('selectChatDriver');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Vyber své jméno --</option>';
+    window.drivers.forEach(d => {
+      select.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+    });
+  }
+
+  function checkDriverLogin() {
+    if (currentDriver) {
+      document.getElementById('loggedDriverInfo').classList.remove('hidden');
+      document.getElementById('loginDriverForm').classList.add('hidden');
+      document.getElementById('loggedDriverName').innerText = currentDriver.name;
+    } else {
+      document.getElementById('loggedDriverInfo').classList.add('hidden');
+      document.getElementById('loginDriverForm').classList.remove('hidden');
+    }
+  }
+
+  function loginDriver() {
+    const driverId = document.getElementById('selectChatDriver').value;
+    const pin = document.getElementById('inputChatPin').value;
+
+    const drv = window.drivers.find(d => d.id === driverId);
+    if (!drv) return alert("Vyberte jméno!");
+    if (drv.pin !== pin) return alert("Špatný PIN!");
+
+    currentDriver = drv;
+    localStorage.setItem('rozvoz_driver', JSON.stringify(drv));
+    checkDriverLogin();
+  }
+
+  function logoutDriver() {
+    currentDriver = null;
+    localStorage.removeItem('rozvoz_driver');
+    checkDriverLogin();
+  }
+
+  window.renderChatMessages = function() {
+    const chatContainer = document.getElementById('chatMessages');
+    if (!chatContainer) return;
+    chatContainer.innerHTML = '';
+
+    window.chatMessagesData.forEach(m => {
+      const isMine = currentDriver && currentDriver.name === m.senderName;
+      const date = new Date(m.timestamp);
+      const timeStr = `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+
+      let contentHtml = '';
+      if (m.type === 'text') {
+        contentHtml = `<div class="chat-body">${m.text}</div>`;
+      } else if (m.type === 'file') {
+        if (m.fileType && m.fileType.startsWith('image/')) {
+          contentHtml = `<img src="${m.fileUrl}" class="chat-img" onclick="window.open('${m.fileUrl}')">`;
+        } else {
+          contentHtml = `<a href="${m.fileUrl}" target="_blank" style="color:var(--primary); font-weight:bold;">📎 Zobrazit přílohu</a>`;
+        }
+      } else if (m.type === 'audio') {
+        contentHtml = `<audio controls src="${m.audioUrl}" class="chat-audio"></audio>`;
+      }
+
+      chatContainer.innerHTML += `
+        <div class="chat-msg ${isMine ? 'mine' : ''}">
+          <div class="chat-header">
+            <span style="color:${m.senderColor || '#2563eb'}">${m.senderName}</span>
+            <span class="chat-time">${timeStr}</span>
+          </div>
+          ${contentHtml}
+        </div>
+      `;
+    });
+
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  async function sendTextMessage() {
+    if (!currentDriver) return alert("Nejprve zvolte své jméno!");
+    const input = document.getElementById('chatTextInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    await window.sendChatMessageToFirebase({
+      type: 'text',
+      text: text,
+      senderName: currentDriver.name,
+      senderColor: currentDriver.color
+    });
+  }
+
+  async function uploadFile(input) {
+    if (!currentDriver) return alert("Nejprve zvolte své jméno!");
+    const file = input.files[0];
+    if (!file) return;
+
+    const fileUrl = await window.uploadFileToStorage(file);
+    await window.sendChatMessageToFirebase({
+      type: 'file',
+      fileUrl: fileUrl,
+      fileType: file.type,
+      senderName: currentDriver.name,
+      senderColor: currentDriver.color
+    });
+    input.value = '';
+  }
+
+  async function toggleVoiceRecording() {
+    if (!currentDriver) return alert("Nejprve zvolte své jméno!");
+    const micBtn = document.getElementById('micBtn');
+
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      micBtn.classList.remove('recording');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], "voice.webm", { type: 'audio/webm' });
+        const audioUrl = await window.uploadFileToStorage(audioFile);
+
+        await window.sendChatMessageToFirebase({
+          type: 'audio',
+          audioUrl: audioUrl,
+          senderName: currentDriver.name,
+          senderColor: currentDriver.color
+        });
+      };
+
+      mediaRecorder.start();
+      micBtn.classList.add('recording');
+    } catch (err) {
+      alert("Microphone access denied or not supported.");
+    }
+  }
+
+  function requestNotificationPermission() {
+    if ("Notification" in window) {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          alert("Notifikace byly úspěšně povoleny!");
+        } else {
+          alert("Notifikace byly zamítnuty.");
+        }
+      });
+    } else {
+      alert("Váš prohlížeč nepodporuje webové notifikace.");
     }
   }
 
@@ -531,7 +749,8 @@
     } else {
       document.getElementById('tabPoznamky').classList.remove('hidden');
       document.getElementById('btnTabPoznamky').classList.add('active');
-      document.getElementById('headerTitle').innerText = "📌 Interní Poznámky";
+      document.getElementById('headerTitle').innerText = "💬 Týmový Chat";
+      window.renderChatMessages();
     }
   }
 
@@ -541,35 +760,17 @@
         isAdmin = true;
         document.getElementById('authBtn').innerText = "Odhlásit";
         document.getElementById('adminCustomerPanel').classList.remove('hidden');
-        document.getElementById('adminNotesPanel').classList.remove('hidden');
         document.getElementById('adminDriverPanel').classList.remove('hidden');
       } else alert("Špatné heslo!");
     } else {
       isAdmin = false;
       document.getElementById('authBtn').innerText = "Admin Přihlášení";
       document.getElementById('adminCustomerPanel').classList.add('hidden');
-      document.getElementById('adminNotesPanel').classList.add('hidden');
       document.getElementById('adminDriverPanel').classList.add('hidden');
       document.getElementById('adminAssignShift').classList.add('hidden');
       resetForm();
     }
     render();
-  }
-
-  function addNote() {
-    const text = document.getElementById('noteInput').value;
-    if (!text) return alert("Text...");
-
-    window.notes.push(text);
-    document.getElementById('noteInput').value = '';
-    window.syncDataToFirebase();
-  }
-
-  function deleteNote(index) {
-    if (confirm("Smazat?")) {
-      window.notes.splice(index, 1);
-      window.syncDataToFirebase();
-    }
   }
 
   initDays();
