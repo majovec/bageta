@@ -44,10 +44,18 @@
     .nav-item { border: none; background: none; font-size: 0.85rem; font-weight: bold; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
     .nav-item.active { color: var(--primary); }
 
-    /* Styly pro Směny a Řidiče */
-    .driver-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; color: white; font-weight: bold; font-size: 0.8rem; margin-right: 5px; margin-top: 4px; }
-    .shift-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--border); }
-    .shift-row:last-child { border-bottom: none; }
+    .driver-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; color: white; font-weight: bold; font-size: 0.75rem; margin-right: 3px; margin-top: 2px; }
+
+    /* Měsíční kalendář */
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: #f1f5f9; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: #cbd5e1; padding: 2px; }
+    .cal-day-head { background: #f8fafc; padding: 6px; text-align: center; font-size: 0.75rem; font-weight: bold; color: #64748b; }
+    .cal-day { background: white; min-height: 60px; padding: 4px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; }
+    .cal-day.empty { background: #f1f5f9; cursor: default; }
+    .cal-day.today { background: #eff6ff; border: 2px solid var(--primary); }
+    .cal-day-num { font-size: 0.8rem; font-weight: bold; color: #334155; }
+    .cal-dots { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
+    .cal-dot { width: 100%; height: 6px; border-radius: 3px; }
   </style>
 </head>
 <body>
@@ -99,7 +107,7 @@
     <div id="customerList"></div>
   </div>
 
-  <!-- ================= ZÁLOŽKA 2: SMĚNY ================= -->
+  <!-- ================= ZÁLOŽKA 2: KALENDÁŘ SMĚN ================= -->
   <div id="tabSmeny" class="hidden">
     <!-- Admin sekce pro správa řidičů -->
     <div id="adminDriverPanel" class="card hidden" style="padding: 15px;">
@@ -113,30 +121,37 @@
       <div id="driversList" style="margin-top:10px;"></div>
     </div>
 
-    <!-- Admin sekce pro plánování směn -->
-    <div id="adminShiftPanel" class="card hidden" style="padding: 15px;">
-      <h3>📅 Naplánovat Směnu</h3>
-      <label>Den:</label>
-      <select id="shiftDay">
-        <option value="Pondělí">Pondělí</option>
-        <option value="Úterý">Úterý</option>
-        <option value="Středa">Středa</option>
-        <option value="Čtvrtek">Čtvrtek</option>
-        <option value="Pátek">Pátek</option>
-        <option value="Sobota">Sobota</option>
-        <option value="Neděle">Neděle</option>
-      </select>
-      <label>Řidič 1:</label>
-      <select id="shiftDriver1"><option value="">-- Vyber --</option></select>
-      <label>Řidič 2 (Volitelný):</label>
-      <select id="shiftDriver2"><option value="">-- Vyber --</option></select>
-      <button class="btn btn-primary" onclick="saveShift()">Uložit Směnu</button>
+    <!-- Měsíční Kalendář -->
+    <div class="card">
+      <div class="calendar-header">
+        <button class="btn" onclick="changeMonth(-1)">◄</button>
+        <strong id="calMonthTitle" style="font-size:1.1rem;"></strong>
+        <button class="btn" onclick="changeMonth(1)">►</button>
+      </div>
+      <div class="calendar-grid">
+        <div class="cal-day-head">Po</div>
+        <div class="cal-day-head">Út</div>
+        <div class="cal-day-head">St</div>
+        <div class="cal-day-head">Čt</div>
+        <div class="cal-day-head">Pá</div>
+        <div class="cal-day-head">So</div>
+        <div class="cal-day-head">Ne</div>
+      </div>
+      <div class="calendar-grid" id="calendarDays"></div>
     </div>
 
-    <!-- Zobrazení Rozpisu Směn -->
-    <div class="card">
-      <h3 style="padding: 15px 15px 5px 15px; margin:0;">📅 Rozpis Směn na Týden</h3>
-      <div id="shiftsSchedule"></div>
+    <!-- Detail vybraného dne (Admin edice) -->
+    <div id="dayDetailPanel" class="card hidden" style="padding: 15px;">
+      <h3 id="selectedDateTitle">Směna pro den</h3>
+      <div id="dayDriversInfo"></div>
+
+      <div id="adminAssignShift" class="hidden" style="margin-top:10px; border-top:1px solid #e2e8f0; padding-top:10px;">
+        <label>Řidič 1:</label>
+        <select id="shiftDriver1"><option value="">-- Vyber --</option></select>
+        <label>Řidič 2 (Závozník):</label>
+        <select id="shiftDriver2"><option value="">-- Vyber --</option></select>
+        <button class="btn btn-primary" onclick="saveShiftForSelectedDay()">Uložit Směnu</button>
+      </div>
     </div>
   </div>
 
@@ -158,7 +173,7 @@
     <span>📍 Trasa</span>
   </button>
   <button class="nav-item" id="btnTabSmeny" onclick="switchTab('smeny')">
-    <span>📅 Směny</span>
+    <span>📅 Kalendář</span>
   </button>
   <button class="nav-item" id="btnTabPoznamky" onclick="switchTab('poznamky')">
     <span>📌 Poznámky</span>
@@ -167,30 +182,30 @@
 
 <script>
   let isAdmin = false;
-  const ADMIN_PIN = "vary"; // NOVÉ HESLO
+  const ADMIN_PIN = "vary";
 
-  const daysOfWeek = ['Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota', 'Neděle'];
   const sysDays = ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota'];
-  const todayIndex = new Date().getDay();
-  let selectedDay = sysDays[todayIndex];
+  const today = new Date();
+  let selectedDay = sysDays[today.getDay()];
 
-  let customers = JSON.parse(localStorage.getItem('bagety_customers_v5')) || [
+  let currentCalDate = new Date();
+  let selectedDateKey = null;
+
+  let customers = JSON.parse(localStorage.getItem('bagety_customers_v6')) || [
     { day: "Pondělí", name: "OMV Karlovy Vary", address: "Plzeňská 12, Karlovy Vary", contact: "+420 777 111 222", items: "Nuggety: 5ks\nStrips: 5ks", returns: "Vratka 12 %" }
   ];
   
-  let notes = JSON.parse(localStorage.getItem('bagety_notes_v5')) || [
+  let notes = JSON.parse(localStorage.getItem('bagety_notes_v6')) || [
     "Kluci, nezapomeňte zkontrolovat ledničky na všech pobočkách!"
   ];
 
-  let drivers = JSON.parse(localStorage.getItem('bagety_drivers_v5')) || [
+  let drivers = JSON.parse(localStorage.getItem('bagety_drivers_v6')) || [
     { id: "d1", name: "Petr", color: "#2563eb" },
     { id: "d2", name: "Pavel", color: "#10b981" }
   ];
 
-  let shifts = JSON.parse(localStorage.getItem('bagety_shifts_v5')) || {
-    "Pondělí": ["d1", "d2"],
-    "Úterý": ["d1"]
-  };
+  // Směny klíčované podle data "YYYY-MM-DD"
+  let shifts = JSON.parse(localStorage.getItem('bagety_shifts_v6')) || {};
 
   function initDays() {
     document.getElementById('custDay').value = selectedDay;
@@ -281,48 +296,145 @@
       `;
     });
 
-    // Render Řidiči a Směny
-    renderDriversAndShifts();
+    renderCalendar();
   }
 
-  function renderDriversAndShifts() {
-    // Seznam řidičů v adminu
-    const driversList = document.getElementById('driversList');
-    const select1 = document.getElementById('shiftDriver1');
-    const select2 = document.getElementById('shiftDriver2');
+  // --- LOGIKA MĚSÍČNÍHO KALENDÁŘE ---
+  function changeMonth(delta) {
+    currentCalDate.setMonth(currentCalDate.getMonth() + delta);
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    const year = currentCalDate.getFullYear();
+    const month = currentCalDate.getMonth();
     
-    driversList.innerHTML = '';
-    select1.innerHTML = '<option value="">-- Vyber --</option>';
-    select2.innerHTML = '<option value="">-- Vyber --</option>';
+    const monthNames = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosince"];
+    document.getElementById('calMonthTitle').innerText = `${monthNames[month]} ${year}`;
 
-    drivers.forEach(d => {
-      driversList.innerHTML += `<span class="driver-badge" style="background:${d.color}">${d.name} ${isAdmin ? `<span onclick="deleteDriver('${d.id}')" style="cursor:pointer;margin-left:5px;">✕</span>` : ''}</span>`;
-      select1.innerHTML += `<option value="${d.id}">${d.name}</option>`;
-      select2.innerHTML += `<option value="${d.id}">${d.name}</option>`;
-    });
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
 
-    // Rozpis směn
-    const schedule = document.getElementById('shiftsSchedule');
-    schedule.innerHTML = '';
+    let startDayIndex = firstDay.getDay() - 1; // Převod na Po=0
+    if (startDayIndex === -1) startDayIndex = 6;
 
-    daysOfWeek.forEach(day => {
-      const assignedIds = shifts[day] || [];
-      let badgesHtml = '';
-      
-      assignedIds.forEach(id => {
-        const d = drivers.find(drv => drv.id === id);
-        if(d) {
-          badgesHtml += `<span class="driver-badge" style="background:${d.color}">${d.name}</span>`;
+    const calDaysContainer = document.getElementById('calendarDays');
+    calDaysContainer.innerHTML = '';
+
+    // Prázdná políčka na začátku
+    for (let i = 0; i < startDayIndex; i++) {
+      calDaysContainer.innerHTML += `<div class="cal-day empty"></div>`;
+    }
+
+    // Dny v měsíci
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const isToday = (dateKey === todayStr);
+
+      const assignedDrivers = shifts[dateKey] || [];
+      let dotsHtml = '';
+
+      assignedDrivers.forEach(dId => {
+        const drv = drivers.find(d => d.id === dId);
+        if (drv) {
+          dotsHtml += `<div class="cal-dot" style="background:${drv.color};" title="${drv.name}"></div>`;
         }
       });
 
-      schedule.innerHTML += `
-        <div class="shift-row">
-          <strong>${day}</strong>
-          <div>${badgesHtml || '<span style="color:#94a3b8; font-style:italic; font-size:0.85rem;">Volno</span>'}</div>
+      calDaysContainer.innerHTML += `
+        <div class="cal-day ${isToday ? 'today' : ''}" onclick="selectCalendarDate('${dateKey}', ${day})">
+          <div class="cal-day-num">${day}</div>
+          <div class="cal-dots">${dotsHtml}</div>
         </div>
       `;
-    });
+    }
+
+    // Render Řidičů v adminu
+    const driversList = document.getElementById('driversList');
+    if (driversList) {
+      driversList.innerHTML = '';
+      drivers.forEach(d => {
+        driversList.innerHTML += `<span class="driver-badge" style="background:${d.color}">${d.name} ${isAdmin ? `<span onclick="deleteDriver('${d.id}')" style="cursor:pointer;margin-left:5px;">✕</span>` : ''}</span>`;
+      });
+    }
+  }
+
+  function selectCalendarDate(dateKey, day) {
+    selectedDateKey = dateKey;
+    const panel = document.getElementById('dayDetailPanel');
+    panel.classList.remove('hidden');
+
+    const formattedDate = `${day}. ${currentCalDate.getMonth()+1}. ${currentCalDate.getFullYear()}`;
+    document.getElementById('selectedDateTitle').innerText = `📅 Směna: ${formattedDate}`;
+
+    const assignedDrivers = shifts[dateKey] || [];
+    const infoDiv = document.getElementById('dayDriversInfo');
+    
+    if (assignedDrivers.length === 0) {
+      infoDiv.innerHTML = `<p style="color:#94a3b8; font-style:italic;">Na tento den není zatiaľ naplánovaná žádná směna.</p>`;
+    } else {
+      infoDiv.innerHTML = '<strong>Jedou:</strong><br>';
+      assignedDrivers.forEach(dId => {
+        const drv = drivers.find(d => d.id === dId);
+        if (drv) {
+          infoDiv.innerHTML += `<span class="driver-badge" style="background:${drv.color}; font-size:0.9rem; padding:5px 12px;">${drv.name}</span> `;
+        }
+      });
+    }
+
+    // Naplnění výběru pro Admina
+    if (isAdmin) {
+      document.getElementById('adminAssignShift').classList.remove('hidden');
+      const s1 = document.getElementById('shiftDriver1');
+      const s2 = document.getElementById('shiftDriver2');
+      
+      s1.innerHTML = '<option value="">-- Žádný --</option>';
+      s2.innerHTML = '<option value="">-- Žádný --</option>';
+
+      drivers.forEach(d => {
+        s1.innerHTML += `<option value="${d.id}" ${assignedDrivers[0] === d.id ? 'selected' : ''}>${d.name}</option>`;
+        s2.innerHTML += `<option value="${d.id}" ${assignedDrivers[1] === d.id ? 'selected' : ''}>${d.name}</option>`;
+      });
+    } else {
+      document.getElementById('adminAssignShift').classList.add('hidden');
+    }
+  }
+
+  function saveShiftForSelectedDay() {
+    if (!selectedDateKey) return;
+    const d1 = document.getElementById('shiftDriver1').value;
+    const d2 = document.getElementById('shiftDriver2').value;
+
+    const list = [];
+    if (d1) list.push(d1);
+    if (d2 && d2 !== d1) list.push(d2);
+
+    shifts[selectedDateKey] = list;
+    localStorage.setItem('bagety_shifts_v6', JSON.stringify(shifts));
+    
+    selectCalendarDate(selectedDateKey, parseInt(selectedDateKey.split('-')[2]));
+    renderCalendar();
+  }
+
+  function addDriver() {
+    const name = document.getElementById('driverName').value;
+    const color = document.getElementById('driverColor').value;
+    if(!name) return alert("Zadejte jméno řidiče");
+
+    drivers.push({ id: 'd_' + Date.now(), name, color });
+    localStorage.setItem('bagety_drivers_v6', JSON.stringify(drivers));
+    document.getElementById('driverName').value = '';
+    renderCalendar();
+  }
+
+  function deleteDriver(id) {
+    if(confirm("Smazat řidiče?")) {
+      drivers = drivers.filter(d => d.id !== id);
+      localStorage.setItem('bagety_drivers_v6', JSON.stringify(drivers));
+      renderCalendar();
+    }
   }
 
   function switchTab(tab) {
@@ -340,7 +452,8 @@
     } else if (tab === 'smeny') {
       document.getElementById('tabSmeny').classList.remove('hidden');
       document.getElementById('btnTabSmeny').classList.add('active');
-      document.getElementById('headerTitle').innerText = "📅 Směny a Řidiči";
+      document.getElementById('headerTitle').innerText = "📅 Měsíční Kalendář";
+      renderCalendar();
     } else {
       document.getElementById('tabPoznamky').classList.remove('hidden');
       document.getElementById('btnTabPoznamky').classList.add('active');
@@ -357,7 +470,6 @@
         document.getElementById('adminCustomerPanel').classList.remove('hidden');
         document.getElementById('adminNotesPanel').classList.remove('hidden');
         document.getElementById('adminDriverPanel').classList.remove('hidden');
-        document.getElementById('adminShiftPanel').classList.remove('hidden');
       } else {
         alert("Špatné heslo!");
       }
@@ -367,7 +479,7 @@
       document.getElementById('adminCustomerPanel').classList.add('hidden');
       document.getElementById('adminNotesPanel').classList.add('hidden');
       document.getElementById('adminDriverPanel').classList.add('hidden');
-      document.getElementById('adminShiftPanel').classList.add('hidden');
+      document.getElementById('adminAssignShift').classList.add('hidden');
     }
     render();
   }
@@ -383,7 +495,7 @@
     if (!name) return alert("Vyplňte název zákazníka");
 
     customers.push({ day, name, address, contact, items, returns });
-    localStorage.setItem('bagety_customers_v5', JSON.stringify(customers));
+    localStorage.setItem('bagety_customers_v6', JSON.stringify(customers));
     
     document.getElementById('custName').value = '';
     document.getElementById('custAddress').value = '';
@@ -396,42 +508,9 @@
   function deleteCustomer(index) {
     if (confirm("Opravdu smazat zákazníka?")) {
       customers.splice(index, 1);
-      localStorage.setItem('bagety_customers_v5', JSON.stringify(customers));
+      localStorage.setItem('bagety_customers_v6', JSON.stringify(customers));
       render();
     }
-  }
-
-  function addDriver() {
-    const name = document.getElementById('driverName').value;
-    const color = document.getElementById('driverColor').value;
-    if(!name) return alert("Zadejte jméno řidiče");
-
-    drivers.push({ id: 'd_' + Date.now(), name, color });
-    localStorage.setItem('bagety_drivers_v5', JSON.stringify(drivers));
-    document.getElementById('driverName').value = '';
-    render();
-  }
-
-  function deleteDriver(id) {
-    if(confirm("Smazat řidiče?")) {
-      drivers = drivers.filter(d => d.id !== id);
-      localStorage.setItem('bagety_drivers_v5', JSON.stringify(drivers));
-      render();
-    }
-  }
-
-  function saveShift() {
-    const day = document.getElementById('shiftDay').value;
-    const d1 = document.getElementById('shiftDriver1').value;
-    const d2 = document.getElementById('shiftDriver2').value;
-
-    const list = [];
-    if(d1) list.push(d1);
-    if(d2 && d2 !== d1) list.push(d2);
-
-    shifts[day] = list;
-    localStorage.setItem('bagety_shifts_v5', JSON.stringify(shifts));
-    render();
   }
 
   function addNote() {
@@ -439,7 +518,7 @@
     if (!text) return alert("Napište text poznámky");
 
     notes.push(text);
-    localStorage.setItem('bagety_notes_v5', JSON.stringify(notes));
+    localStorage.setItem('bagety_notes_v6', JSON.stringify(notes));
     document.getElementById('noteInput').value = '';
     render();
   }
@@ -447,7 +526,7 @@
   function deleteNote(index) {
     if (confirm("Opravdu smazat poznámku?")) {
       notes.splice(index, 1);
-      localStorage.setItem('bagety_notes_v5', JSON.stringify(notes));
+      localStorage.setItem('bagety_notes_v6', JSON.stringify(notes));
       render();
     }
   }
