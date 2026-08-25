@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rozvoz Baget</title>
+  <meta name="theme-color" content="#2563eb">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="https://img.icons8.com/emoji/192/baguette-bread-emoji.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#2563eb">
   <style>
     :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px 15px 70px 15px; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px 15px 80px 15px; }
     .container { max-width: 600px; margin: 0 auto; }
     
     header { display: flex; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 12px 15px; border-radius: 12px; margin-bottom: 15px; }
@@ -41,8 +41,13 @@
     .hidden { display: none !important; }
 
     .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 5px rgba(0,0,0,0.05); }
-    .nav-item { border: none; background: none; font-size: 0.9rem; font-weight: bold; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+    .nav-item { border: none; background: none; font-size: 0.85rem; font-weight: bold; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
     .nav-item.active { color: var(--primary); }
+
+    /* Styly pro Směny a Řidiče */
+    .driver-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; color: white; font-weight: bold; font-size: 0.8rem; margin-right: 5px; margin-top: 4px; }
+    .shift-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--border); }
+    .shift-row:last-child { border-bottom: none; }
   </style>
 </head>
 <body>
@@ -55,8 +60,6 @@
 
   <!-- ================= ZÁLOŽKA 1: TRASA ================= -->
   <div id="tabTrasa">
-    
-    <!-- Výběr Dne -->
     <div class="day-selector" id="daySelector">
       <button class="day-btn" onclick="selectDay('Pondělí')">Po</button>
       <button class="day-btn" onclick="selectDay('Úterý')">Út</button>
@@ -86,18 +89,58 @@
       <input type="text" id="custAddress" placeholder="ulice, město">
       <label>Kontakt / Telefon:</label>
       <input type="text" id="custContact">
-      <label>Kusy pro řidiče (např. Nuggety 5ks, Strips 5ks):</label>
+      <label>Kusy pro řidiče:</label>
       <textarea id="custItems" rows="2"></textarea>
       <label style="color:#b91c1c; font-weight:bold;">⚠️ Vratkovost (VIDÍ POUZE ADMIN):</label>
-      <input type="text" id="custReturns" placeholder="např. Vratka 10 %">
+      <input type="text" id="custReturns">
       <button class="btn btn-primary" onclick="addCustomer()">Uložit Zákazníka</button>
     </div>
 
-    <!-- Seznam Zákazníků -->
     <div id="customerList"></div>
   </div>
 
-  <!-- ================= ZÁLOŽKA 2: POZNÁMKY ================= -->
+  <!-- ================= ZÁLOŽKA 2: SMĚNY ================= -->
+  <div id="tabSmeny" class="hidden">
+    <!-- Admin sekce pro správa řidičů -->
+    <div id="adminDriverPanel" class="card hidden" style="padding: 15px;">
+      <h3>👤 Správa Řidičů</h3>
+      <div style="display:flex; gap:10px;">
+        <input type="text" id="driverName" placeholder="Jméno řidiče" style="margin:0;">
+        <input type="color" id="driverColor" value="#2563eb" style="width:50px; height:38px; padding:2px; margin:0;">
+      </div>
+      <button class="btn btn-primary" onclick="addDriver()" style="margin-top:10px;">Přidat Řidiče</button>
+      
+      <div id="driversList" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- Admin sekce pro plánování směn -->
+    <div id="adminShiftPanel" class="card hidden" style="padding: 15px;">
+      <h3>📅 Naplánovat Směnu</h3>
+      <label>Den:</label>
+      <select id="shiftDay">
+        <option value="Pondělí">Pondělí</option>
+        <option value="Úterý">Úterý</option>
+        <option value="Středa">Středa</option>
+        <option value="Čtvrtek">Čtvrtek</option>
+        <option value="Pátek">Pátek</option>
+        <option value="Sobota">Sobota</option>
+        <option value="Neděle">Neděle</option>
+      </select>
+      <label>Řidič 1:</label>
+      <select id="shiftDriver1"><option value="">-- Vyber --</option></select>
+      <label>Řidič 2 (Volitelný):</label>
+      <select id="shiftDriver2"><option value="">-- Vyber --</option></select>
+      <button class="btn btn-primary" onclick="saveShift()">Uložit Směnu</button>
+    </div>
+
+    <!-- Zobrazení Rozpisu Směn -->
+    <div class="card">
+      <h3 style="padding: 15px 15px 5px 15px; margin:0;">📅 Rozpis Směn na Týden</h3>
+      <div id="shiftsSchedule"></div>
+    </div>
+  </div>
+
+  <!-- ================= ZÁLOŽKA 3: POZNÁMKY ================= -->
   <div id="tabPoznamky" class="hidden">
     <div id="adminNotesPanel" class="card hidden" style="padding: 15px;">
       <h3>➕ Přidat Novou Poznámku</h3>
@@ -114,27 +157,40 @@
   <button class="nav-item active" id="btnTabTrasa" onclick="switchTab('trasa')">
     <span>📍 Trasa</span>
   </button>
+  <button class="nav-item" id="btnTabSmeny" onclick="switchTab('smeny')">
+    <span>📅 Směny</span>
+  </button>
   <button class="nav-item" id="btnTabPoznamky" onclick="switchTab('poznamky')">
-    <span>📌 Interní Poznámky</span>
+    <span>📌 Poznámky</span>
   </button>
 </div>
 
 <script>
   let isAdmin = false;
-  const ADMIN_PIN = "vary";
+  const ADMIN_PIN = "vary"; // NOVÉ HESLO
 
-  const daysOfWeek = ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota'];
+  const daysOfWeek = ['Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota', 'Neděle'];
+  const sysDays = ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota'];
   const todayIndex = new Date().getDay();
-  let selectedDay = daysOfWeek[todayIndex];
+  let selectedDay = sysDays[todayIndex];
 
-  let customers = JSON.parse(localStorage.getItem('bagety_customers_v4')) || [
-    { day: "Pondělí", name: "OMV Karlovy Vary", address: "Plzeňská 12, Karlovy Vary", contact: "+420 777 111 222", items: "Nuggety: 5ks\nStrips: 5ks", returns: "Vratka 12 %" },
-    { day: "Pondělí", name: "Benzina Sokolov", address: "Chebská 88, Sokolov", contact: "+420 600 123 456", items: "Bagety Pikant: 8ks", returns: "Vratka 0 %" }
+  let customers = JSON.parse(localStorage.getItem('bagety_customers_v5')) || [
+    { day: "Pondělí", name: "OMV Karlovy Vary", address: "Plzeňská 12, Karlovy Vary", contact: "+420 777 111 222", items: "Nuggety: 5ks\nStrips: 5ks", returns: "Vratka 12 %" }
   ];
   
-  let notes = JSON.parse(localStorage.getItem('bagety_notes_v4')) || [
+  let notes = JSON.parse(localStorage.getItem('bagety_notes_v5')) || [
     "Kluci, nezapomeňte zkontrolovat ledničky na všech pobočkách!"
   ];
+
+  let drivers = JSON.parse(localStorage.getItem('bagety_drivers_v5')) || [
+    { id: "d1", name: "Petr", color: "#2563eb" },
+    { id: "d2", name: "Pavel", color: "#10b981" }
+  ];
+
+  let shifts = JSON.parse(localStorage.getItem('bagety_shifts_v5')) || {
+    "Pondělí": ["d1", "d2"],
+    "Úterý": ["d1"]
+  };
 
   function initDays() {
     document.getElementById('custDay').value = selectedDay;
@@ -172,6 +228,7 @@
   }
 
   function render() {
+    // Render Trasy
     const custList = document.getElementById('customerList');
     custList.innerHTML = `<h3 style="margin-top:0; color:#475569;">Rozvoz na: ${selectedDay}</h3>`;
     
@@ -180,10 +237,8 @@
     if (filteredCustomers.length === 0) {
       custList.innerHTML += `<p style="color:#94a3b8; font-style:italic;">Na tento den nemáte žádné zákazníky.</p>`;
     } else {
-      filteredCustomers.forEach((c, index) => {
+      filteredCustomers.forEach((c) => {
         const realIndex = customers.indexOf(c);
-        
-        // Odkaz na Google Mapy pro navigaci
         const navUrl = c.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}` : '#';
 
         custList.innerHTML += `
@@ -200,18 +255,11 @@
               <div class="details">
                 <p style="margin:4px 0;">📍 <strong>Adresa:</strong> ${c.address || 'Neuvedena'}</p>
                 <p style="margin:4px 0;">📞 <strong>Kontakt:</strong> ${c.contact || 'Neuveden'}</p>
-                
                 ${c.address ? `<a href="${navUrl}" target="_blank" class="btn-nav">🧭 Navigovat na adresu</a>` : ''}
-
                 <div style="background:#f1f5f9; padding:8px; border-radius:6px; margin-top:8px; white-space:pre-wrap;">
                   <strong>📦 Počty kusů:</strong><br>${c.items}
                 </div>
-
-                ${isAdmin && c.returns ? `
-                  <div class="admin-only-box">
-                    <strong>🔒 ADMIN INFO (Vratkovost):</strong><br>${c.returns}
-                  </div>
-                ` : ''}
+                ${isAdmin && c.returns ? `<div class="admin-only-box"><strong>🔒 ADMIN INFO (Vratkovost):</strong><br>${c.returns}</div>` : ''}
               </div>
             </div>
           </div>
@@ -219,9 +267,9 @@
       });
     }
 
+    // Render Poznámky
     const notesList = document.getElementById('notesList');
     notesList.innerHTML = '';
-    
     notes.forEach((n, index) => {
       notesList.innerHTML += `
         <div class="card" style="background: #fef3c7; border-color: #fde68a; padding: 15px;">
@@ -232,19 +280,69 @@
         </div>
       `;
     });
+
+    // Render Řidiči a Směny
+    renderDriversAndShifts();
+  }
+
+  function renderDriversAndShifts() {
+    // Seznam řidičů v adminu
+    const driversList = document.getElementById('driversList');
+    const select1 = document.getElementById('shiftDriver1');
+    const select2 = document.getElementById('shiftDriver2');
+    
+    driversList.innerHTML = '';
+    select1.innerHTML = '<option value="">-- Vyber --</option>';
+    select2.innerHTML = '<option value="">-- Vyber --</option>';
+
+    drivers.forEach(d => {
+      driversList.innerHTML += `<span class="driver-badge" style="background:${d.color}">${d.name} ${isAdmin ? `<span onclick="deleteDriver('${d.id}')" style="cursor:pointer;margin-left:5px;">✕</span>` : ''}</span>`;
+      select1.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+      select2.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+    });
+
+    // Rozpis směn
+    const schedule = document.getElementById('shiftsSchedule');
+    schedule.innerHTML = '';
+
+    daysOfWeek.forEach(day => {
+      const assignedIds = shifts[day] || [];
+      let badgesHtml = '';
+      
+      assignedIds.forEach(id => {
+        const d = drivers.find(drv => drv.id === id);
+        if(d) {
+          badgesHtml += `<span class="driver-badge" style="background:${d.color}">${d.name}</span>`;
+        }
+      });
+
+      schedule.innerHTML += `
+        <div class="shift-row">
+          <strong>${day}</strong>
+          <div>${badgesHtml || '<span style="color:#94a3b8; font-style:italic; font-size:0.85rem;">Volno</span>'}</div>
+        </div>
+      `;
+    });
   }
 
   function switchTab(tab) {
+    document.getElementById('tabTrasa').classList.add('hidden');
+    document.getElementById('tabSmeny').classList.add('hidden');
+    document.getElementById('tabPoznamky').classList.add('hidden');
+    document.getElementById('btnTabTrasa').classList.remove('active');
+    document.getElementById('btnTabSmeny').classList.remove('active');
+    document.getElementById('btnTabPoznamky').classList.remove('active');
+
     if (tab === 'trasa') {
       document.getElementById('tabTrasa').classList.remove('hidden');
-      document.getElementById('tabPoznamky').classList.add('hidden');
       document.getElementById('btnTabTrasa').classList.add('active');
-      document.getElementById('btnTabPoznamky').classList.remove('active');
       document.getElementById('headerTitle').innerText = "🚚 Trasa Rozvozu";
+    } else if (tab === 'smeny') {
+      document.getElementById('tabSmeny').classList.remove('hidden');
+      document.getElementById('btnTabSmeny').classList.add('active');
+      document.getElementById('headerTitle').innerText = "📅 Směny a Řidiči";
     } else {
-      document.getElementById('tabTrasa').classList.add('hidden');
       document.getElementById('tabPoznamky').classList.remove('hidden');
-      document.getElementById('btnTabTrasa').classList.remove('active');
       document.getElementById('btnTabPoznamky').classList.add('active');
       document.getElementById('headerTitle').innerText = "📌 Interní Poznámky";
     }
@@ -258,6 +356,8 @@
         document.getElementById('authBtn').innerText = "Odhlásit";
         document.getElementById('adminCustomerPanel').classList.remove('hidden');
         document.getElementById('adminNotesPanel').classList.remove('hidden');
+        document.getElementById('adminDriverPanel').classList.remove('hidden');
+        document.getElementById('adminShiftPanel').classList.remove('hidden');
       } else {
         alert("Špatné heslo!");
       }
@@ -266,6 +366,8 @@
       document.getElementById('authBtn').innerText = "Admin Přihlášení";
       document.getElementById('adminCustomerPanel').classList.add('hidden');
       document.getElementById('adminNotesPanel').classList.add('hidden');
+      document.getElementById('adminDriverPanel').classList.add('hidden');
+      document.getElementById('adminShiftPanel').classList.add('hidden');
     }
     render();
   }
@@ -281,23 +383,55 @@
     if (!name) return alert("Vyplňte název zákazníka");
 
     customers.push({ day, name, address, contact, items, returns });
-    localStorage.setItem('bagety_customers_v4', JSON.stringify(customers));
+    localStorage.setItem('bagety_customers_v5', JSON.stringify(customers));
     
     document.getElementById('custName').value = '';
     document.getElementById('custAddress').value = '';
     document.getElementById('custContact').value = '';
     document.getElementById('custItems').value = '';
     document.getElementById('custReturns').value = '';
-
     render();
   }
 
   function deleteCustomer(index) {
     if (confirm("Opravdu smazat zákazníka?")) {
       customers.splice(index, 1);
-      localStorage.setItem('bagety_customers_v4', JSON.stringify(customers));
+      localStorage.setItem('bagety_customers_v5', JSON.stringify(customers));
       render();
     }
+  }
+
+  function addDriver() {
+    const name = document.getElementById('driverName').value;
+    const color = document.getElementById('driverColor').value;
+    if(!name) return alert("Zadejte jméno řidiče");
+
+    drivers.push({ id: 'd_' + Date.now(), name, color });
+    localStorage.setItem('bagety_drivers_v5', JSON.stringify(drivers));
+    document.getElementById('driverName').value = '';
+    render();
+  }
+
+  function deleteDriver(id) {
+    if(confirm("Smazat řidiče?")) {
+      drivers = drivers.filter(d => d.id !== id);
+      localStorage.setItem('bagety_drivers_v5', JSON.stringify(drivers));
+      render();
+    }
+  }
+
+  function saveShift() {
+    const day = document.getElementById('shiftDay').value;
+    const d1 = document.getElementById('shiftDriver1').value;
+    const d2 = document.getElementById('shiftDriver2').value;
+
+    const list = [];
+    if(d1) list.push(d1);
+    if(d2 && d2 !== d1) list.push(d2);
+
+    shifts[day] = list;
+    localStorage.setItem('bagety_shifts_v5', JSON.stringify(shifts));
+    render();
   }
 
   function addNote() {
@@ -305,7 +439,7 @@
     if (!text) return alert("Napište text poznámky");
 
     notes.push(text);
-    localStorage.setItem('bagety_notes_v4', JSON.stringify(notes));
+    localStorage.setItem('bagety_notes_v5', JSON.stringify(notes));
     document.getElementById('noteInput').value = '';
     render();
   }
@@ -313,7 +447,7 @@
   function deleteNote(index) {
     if (confirm("Opravdu smazat poznámku?")) {
       notes.splice(index, 1);
-      localStorage.setItem('bagety_notes_v4', JSON.stringify(notes));
+      localStorage.setItem('bagety_notes_v5', JSON.stringify(notes));
       render();
     }
   }
