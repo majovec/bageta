@@ -22,12 +22,13 @@
 
     .btn { background: white; color: var(--primary); border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
     .btn-danger { background: #ef4444; color: white; }
+    .btn-edit { background: #f59e0b; color: white; }
+    .btn-move { background: #64748b; color: white; padding: 3px 8px; font-size: 0.8rem; }
     .btn-primary { background: var(--primary); color: white; width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; margin-top: 5px; }
     .btn-nav { background: #10b981; color: white; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; margin-top: 6px; }
 
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; }
-    
-    .card-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; background: #ffffff; }
+    .card-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; background: #ffffff; }
     .card-header:active { background: #f1f5f9; }
     .arrow { font-size: 0.8rem; transition: transform 0.2s ease; color: #64748b; }
     .arrow.open { transform: rotate(180deg); }
@@ -36,7 +37,6 @@
     .details { margin-top: 10px; font-size: 0.9rem; line-height: 1.4; }
     
     .admin-only-box { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 10px; border-radius: 6px; margin-top: 10px; }
-    
     input, select, textarea { width: 100%; padding: 8px; margin: 4px 0 10px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; }
     .hidden { display: none !important; }
 
@@ -46,7 +46,6 @@
 
     .driver-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; color: white; font-weight: bold; font-size: 0.75rem; margin-right: 3px; margin-top: 2px; }
 
-    /* Měsíční kalendář */
     .calendar-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: #f1f5f9; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: #cbd5e1; padding: 2px; }
     .cal-day-head { background: #f8fafc; padding: 6px; text-align: center; font-size: 0.75rem; font-weight: bold; color: #64748b; }
@@ -56,6 +55,7 @@
     .cal-day-num { font-size: 0.8rem; font-weight: bold; color: #334155; }
     .cal-dots { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
     .cal-dot { width: 100%; height: 6px; border-radius: 3px; }
+    .action-btns { display: flex; gap: 4px; align-items: center; }
   </style>
 </head>
 <body>
@@ -66,7 +66,7 @@
     <button id="authBtn" class="btn" onclick="toggleAdmin()">Admin Přihlášení</button>
   </header>
 
-  <!-- ================= ZÁLOŽKA 1: TRASA ================= -->
+  <!-- TRASA -->
   <div id="tabTrasa">
     <div class="day-selector" id="daySelector">
       <button class="day-btn" onclick="selectDay('Pondělí')">Po</button>
@@ -78,9 +78,9 @@
       <button class="day-btn" onclick="selectDay('Neděle')">Ne</button>
     </div>
 
-    <!-- Admin Formulář pro Zákazníka -->
     <div id="adminCustomerPanel" class="card hidden" style="padding: 15px;">
-      <h3>➕ Přidat Zákazníka</h3>
+      <h3 id="formTitle">➕ Přidat Zákazníka</h3>
+      <input type="hidden" id="editIndex" value="-1">
       <label>Den rozvozu:</label>
       <select id="custDay">
         <option value="Pondělí">Pondělí</option>
@@ -91,37 +91,31 @@
         <option value="Sobota">Sobota</option>
         <option value="Neděle">Neděle</option>
       </select>
-      <label>Název (např. OMV Karlovy Vary):</label>
-      <input type="text" id="custName">
-      <label>Adresa:</label>
-      <input type="text" id="custAddress" placeholder="ulice, město">
-      <label>Kontakt / Telefon:</label>
-      <input type="text" id="custContact">
-      <label>Kusy pro řidiče:</label>
-      <textarea id="custItems" rows="2"></textarea>
-      <label style="color:#b91c1c; font-weight:bold;">⚠️ Vratkovost (VIDÍ POUZE ADMIN):</label>
-      <input type="text" id="custReturns">
-      <button class="btn btn-primary" onclick="addCustomer()">Uložit Zákazníka</button>
+      <label>Název / Firma:</label><input type="text" id="custName">
+      <label>Adresa:</label><input type="text" id="custAddress" placeholder="ulice, město">
+      <label>Kontakt:</label><input type="text" id="custContact">
+      <label>Kusy pro řidiče:</label><textarea id="custItems" rows="2"></textarea>
+      <label style="color:#b91c1c; font-weight:bold;">⚠️ Vratkovost (POUZE ADMIN):</label><input type="text" id="custReturns">
+      
+      <button class="btn btn-primary" id="saveCustBtn" onclick="saveCustomer()">Uložit Zákazníka</button>
+      <button class="btn btn-danger hidden" id="cancelEditBtn" onclick="resetForm()" style="width:100%; margin-top:5px;">Zrušit úpravy</button>
     </div>
 
     <div id="customerList"></div>
   </div>
 
-  <!-- ================= ZÁLOŽKA 2: KALENDÁŘ SMĚN ================= -->
+  <!-- KALENDÁŘ -->
   <div id="tabSmeny" class="hidden">
-    <!-- Admin sekce pro správa řidičů -->
     <div id="adminDriverPanel" class="card hidden" style="padding: 15px;">
       <h3>👤 Správa Řidičů</h3>
       <div style="display:flex; gap:10px;">
-        <input type="text" id="driverName" placeholder="Jméno řidiče" style="margin:0;">
+        <input type="text" id="driverName" placeholder="Jméno" style="margin:0;">
         <input type="color" id="driverColor" value="#2563eb" style="width:50px; height:38px; padding:2px; margin:0;">
       </div>
       <button class="btn btn-primary" onclick="addDriver()" style="margin-top:10px;">Přidat Řidiče</button>
-      
       <div id="driversList" style="margin-top:10px;"></div>
     </div>
 
-    <!-- Měsíční Kalendář -->
     <div class="card">
       <div class="calendar-header">
         <button class="btn" onclick="changeMonth(-1)">◄</button>
@@ -129,56 +123,86 @@
         <button class="btn" onclick="changeMonth(1)">►</button>
       </div>
       <div class="calendar-grid">
-        <div class="cal-day-head">Po</div>
-        <div class="cal-day-head">Út</div>
-        <div class="cal-day-head">St</div>
-        <div class="cal-day-head">Čt</div>
-        <div class="cal-day-head">Pá</div>
-        <div class="cal-day-head">So</div>
-        <div class="cal-day-head">Ne</div>
+        <div class="cal-day-head">Po</div><div class="cal-day-head">Út</div><div class="cal-day-head">St</div>
+        <div class="cal-day-head">Čt</div><div class="cal-day-head">Pá</div><div class="cal-day-head">So</div><div class="cal-day-head">Ne</div>
       </div>
       <div class="calendar-grid" id="calendarDays"></div>
     </div>
 
-    <!-- Detail vybraného dne (Admin edice) -->
     <div id="dayDetailPanel" class="card hidden" style="padding: 15px;">
       <h3 id="selectedDateTitle">Směna pro den</h3>
       <div id="dayDriversInfo"></div>
 
       <div id="adminAssignShift" class="hidden" style="margin-top:10px; border-top:1px solid #e2e8f0; padding-top:10px;">
-        <label>Řidič 1:</label>
-        <select id="shiftDriver1"><option value="">-- Vyber --</option></select>
-        <label>Řidič 2 (Závozník):</label>
-        <select id="shiftDriver2"><option value="">-- Vyber --</option></select>
+        <label>Řidič 1:</label><select id="shiftDriver1"><option value="">-- Vyber --</option></select>
+        <label>Řidič 2:</label><select id="shiftDriver2"><option value="">-- Vyber --</option></select>
         <button class="btn btn-primary" onclick="saveShiftForSelectedDay()">Uložit Směnu</button>
       </div>
     </div>
   </div>
 
-  <!-- ================= ZÁLOŽKA 3: POZNÁMKY ================= -->
+  <!-- POZNÁMKY -->
   <div id="tabPoznamky" class="hidden">
     <div id="adminNotesPanel" class="card hidden" style="padding: 15px;">
-      <h3>➕ Přidat Novou Poznámku</h3>
-      <textarea id="noteInput" rows="3" placeholder="Napiš poznámku pro kluky..."></textarea>
+      <h3>➕ Přidat Poznámku</h3>
+      <textarea id="noteInput" rows="3" placeholder="Napiš poznámku..."></textarea>
       <button class="btn btn-primary" onclick="addNote()">Uložit Poznámku</button>
     </div>
-
     <div id="notesList"></div>
   </div>
 </div>
 
-<!-- Spodní menu -->
 <div class="bottom-nav">
-  <button class="nav-item active" id="btnTabTrasa" onclick="switchTab('trasa')">
-    <span>📍 Trasa</span>
-  </button>
-  <button class="nav-item" id="btnTabSmeny" onclick="switchTab('smeny')">
-    <span>📅 Kalendář</span>
-  </button>
-  <button class="nav-item" id="btnTabPoznamky" onclick="switchTab('poznamky')">
-    <span>📌 Poznámky</span>
-  </button>
+  <button class="nav-item active" id="btnTabTrasa" onclick="switchTab('trasa')"><span>📍 Trasa</span></button>
+  <button class="nav-item" id="btnTabSmeny" onclick="switchTab('smeny')"><span>📅 Kalendář</span></button>
+  <button class="nav-item" id="btnTabPoznamky" onclick="switchTab('poznamky')"><span>📌 Poznámky</span></button>
 </div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDBbwPzYN49XMHM9vGx3jZFlCGX-Jamt2c",
+    authDomain: "rozvoz-baget.firebaseapp.com",
+    projectId: "rozvoz-baget",
+    storageBucket: "rozvoz-baget.firebasestorage.app",
+    messagingSenderId: "92090284806",
+    appId: "1:92090284806:web:e310670bd44a909c887c87",
+    measurementId: "G-39YKG62NBW"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.db = db;
+  window.doc = doc;
+  window.setDoc = setDoc;
+
+  // Načítání v reálném čase
+  onSnapshot(doc(db, "appData", "main"), (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      window.customers = data.customers || [];
+      window.notes = data.notes || [];
+      window.drivers = data.drivers || [];
+      window.shifts = data.shifts || {};
+      window.render();
+    } else {
+      window.syncDataToFirebase();
+    }
+  });
+
+  window.syncDataToFirebase = async function() {
+    await setDoc(doc(db, "appData", "main"), {
+      customers: window.customers,
+      notes: window.notes,
+      drivers: window.drivers,
+      shifts: window.shifts
+    });
+  }
+</script>
 
 <script>
   let isAdmin = false;
@@ -191,21 +215,10 @@
   let currentCalDate = new Date();
   let selectedDateKey = null;
 
-  let customers = JSON.parse(localStorage.getItem('bagety_customers_v6')) || [
-    { day: "Pondělí", name: "OMV Karlovy Vary", address: "Plzeňská 12, Karlovy Vary", contact: "+420 777 111 222", items: "Nuggety: 5ks\nStrips: 5ks", returns: "Vratka 12 %" }
-  ];
-  
-  let notes = JSON.parse(localStorage.getItem('bagety_notes_v6')) || [
-    "Kluci, nezapomeňte zkontrolovat ledničky na všech pobočkách!"
-  ];
-
-  let drivers = JSON.parse(localStorage.getItem('bagety_drivers_v6')) || [
-    { id: "d1", name: "Petr", color: "#2563eb" },
-    { id: "d2", name: "Pavel", color: "#10b981" }
-  ];
-
-  // Směny klíčované podle data "YYYY-MM-DD"
-  let shifts = JSON.parse(localStorage.getItem('bagety_shifts_v6')) || {};
+  window.customers = [];
+  window.notes = [];
+  window.drivers = [];
+  window.shifts = {};
 
   function initDays() {
     document.getElementById('custDay').value = selectedDay;
@@ -215,11 +228,7 @@
   function updateDayButtons() {
     const btns = document.querySelectorAll('.day-btn');
     btns.forEach(btn => {
-      if(btn.innerText === getShortDay(selectedDay)) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
+      btn.classList.toggle('active', btn.innerText === getShortDay(selectedDay));
     });
   }
 
@@ -236,36 +245,42 @@
   }
 
   function toggleCard(id) {
-    const content = document.getElementById(`content-${id}`);
-    const arrow = document.getElementById(`arrow-${id}`);
-    content.classList.toggle('hidden');
-    arrow.classList.toggle('open');
+    document.getElementById(`content-${id}`).classList.toggle('hidden');
+    document.getElementById(`arrow-${id}`).classList.toggle('open');
   }
 
-  function render() {
-    // Render Trasy
+  window.render = function() {
     const custList = document.getElementById('customerList');
     custList.innerHTML = `<h3 style="margin-top:0; color:#475569;">Rozvoz na: ${selectedDay}</h3>`;
     
-    const filteredCustomers = customers.filter(c => c.day === selectedDay);
+    const filteredCustomers = window.customers
+      .map((c, index) => ({ ...c, originalIndex: index }))
+      .filter(c => c.day === selectedDay);
 
     if (filteredCustomers.length === 0) {
-      custList.innerHTML += `<p style="color:#94a3b8; font-style:italic;">Na tento den nemáte žádné zákazníky.</p>`;
+      custList.innerHTML += `<p style="color:#94a3b8; font-style:italic;">Žádní zákazníci.</p>`;
     } else {
-      filteredCustomers.forEach((c) => {
-        const realIndex = customers.indexOf(c);
+      filteredCustomers.forEach((c, idx) => {
+        const realIndex = c.originalIndex;
         const navUrl = c.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}` : '#';
 
         custList.innerHTML += `
           <div class="card">
             <div class="card-header" onclick="toggleCard(${realIndex})">
-              <strong style="font-size:1.05rem;">${c.name}</strong>
-              <div style="display:flex; align-items:center; gap:10px;">
-                ${isAdmin ? `<button class="btn btn-danger" style="padding:3px 8px; font-size:0.75rem;" onclick="event.stopPropagation(); deleteCustomer(${realIndex})">Smazat</button>` : ''}
+              <div>
+                <span style="font-weight:bold; color:var(--primary); margin-right:5px;">${idx + 1}.</span>
+                <strong style="font-size:1.05rem;">${c.name}</strong>
+              </div>
+              <div class="action-btns" onclick="event.stopPropagation();">
+                ${isAdmin ? `
+                  <button class="btn btn-move" onclick="moveCustomer(${realIndex}, -1)">⬆️</button>
+                  <button class="btn btn-move" onclick="moveCustomer(${realIndex}, 1)">⬇️</button>
+                  <button class="btn btn-edit" style="padding:3px 8px; font-size:0.75rem;" onclick="editCustomer(${realIndex})">✏️</button>
+                  <button class="btn btn-danger" style="padding:3px 8px; font-size:0.75rem;" onclick="deleteCustomer(${realIndex})">🗑️</button>
+                ` : ''}
                 <span class="arrow" id="arrow-${realIndex}">▼</span>
               </div>
             </div>
-
             <div class="card-content hidden" id="content-${realIndex}">
               <div class="details">
                 <p style="margin:4px 0;">📍 <strong>Adresa:</strong> ${c.address || 'Neuvedena'}</p>
@@ -274,7 +289,7 @@
                 <div style="background:#f1f5f9; padding:8px; border-radius:6px; margin-top:8px; white-space:pre-wrap;">
                   <strong>📦 Počty kusů:</strong><br>${c.items}
                 </div>
-                ${isAdmin && c.returns ? `<div class="admin-only-box"><strong>🔒 ADMIN INFO (Vratkovost):</strong><br>${c.returns}</div>` : ''}
+                ${isAdmin && c.returns ? `<div class="admin-only-box"><strong>🔒 ADMIN INFO:</strong><br>${c.returns}</div>` : ''}
               </div>
             </div>
           </div>
@@ -282,10 +297,9 @@
       });
     }
 
-    // Render Poznámky
     const notesList = document.getElementById('notesList');
     notesList.innerHTML = '';
-    notes.forEach((n, index) => {
+    window.notes.forEach((n, index) => {
       notesList.innerHTML += `
         <div class="card" style="background: #fef3c7; border-color: #fde68a; padding: 15px;">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -299,7 +313,82 @@
     renderCalendar();
   }
 
-  // --- LOGIKA MĚSÍČNÍHO KALENDÁŘE ---
+  function saveCustomer() {
+    const editIdx = parseInt(document.getElementById('editIndex').value);
+    const day = document.getElementById('custDay').value;
+    const name = document.getElementById('custName').value;
+    const address = document.getElementById('custAddress').value;
+    const contact = document.getElementById('custContact').value;
+    const items = document.getElementById('custItems').value;
+    const returns = document.getElementById('custReturns').value;
+
+    if (!name) return alert("Vyplňte název!");
+
+    if (editIdx >= 0) {
+      window.customers[editIdx] = { day, name, address, contact, items, returns };
+    } else {
+      window.customers.push({ day, name, address, contact, items, returns });
+    }
+
+    resetForm();
+    window.syncDataToFirebase();
+  }
+
+  function editCustomer(index) {
+    const c = window.customers[index];
+    document.getElementById('editIndex').value = index;
+    document.getElementById('custDay').value = c.day;
+    document.getElementById('custName').value = c.name;
+    document.getElementById('custAddress').value = c.address || '';
+    document.getElementById('custContact').value = c.contact || '';
+    document.getElementById('custItems').value = c.items || '';
+    document.getElementById('custReturns').value = c.returns || '';
+
+    document.getElementById('formTitle').innerText = "✏️ Upravit Zákazníka";
+    document.getElementById('saveCustBtn').innerText = "Uložit Změny";
+    document.getElementById('cancelEditBtn').classList.remove('hidden');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetForm() {
+    document.getElementById('editIndex').value = "-1";
+    document.getElementById('custName').value = '';
+    document.getElementById('custAddress').value = '';
+    document.getElementById('custContact').value = '';
+    document.getElementById('custItems').value = '';
+    document.getElementById('custReturns').value = '';
+
+    document.getElementById('formTitle').innerText = "➕ Přidat Zákazníka";
+    document.getElementById('saveCustBtn').innerText = "Uložit Zákazníka";
+    document.getElementById('cancelEditBtn').classList.add('hidden');
+  }
+
+  function moveCustomer(index, direction) {
+    const day = window.customers[index].day;
+    const dayCustomers = window.customers.filter(c => c.day === day);
+    const subIndex = dayCustomers.indexOf(window.customers[index]);
+
+    const targetSubIndex = subIndex + direction;
+    if (targetSubIndex < 0 || targetSubIndex >= dayCustomers.length) return;
+
+    const targetCustomer = dayCustomers[targetSubIndex];
+    const targetRealIndex = window.customers.indexOf(targetCustomer);
+
+    const temp = window.customers[index];
+    window.customers[index] = window.customers[targetRealIndex];
+    window.customers[targetRealIndex] = temp;
+
+    window.syncDataToFirebase();
+  }
+
+  function deleteCustomer(index) {
+    if (confirm("Smazat zastávku?")) {
+      window.customers.splice(index, 1);
+      window.syncDataToFirebase();
+    }
+  }
+
   function changeMonth(delta) {
     currentCalDate.setMonth(currentCalDate.getMonth() + delta);
     renderCalendar();
@@ -308,39 +397,34 @@
   function renderCalendar() {
     const year = currentCalDate.getFullYear();
     const month = currentCalDate.getMonth();
-    
     const monthNames = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosince"];
+    
     document.getElementById('calMonthTitle').innerText = `${monthNames[month]} ${year}`;
-
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
 
-    let startDayIndex = firstDay.getDay() - 1; // Převod na Po=0
+    let startDayIndex = firstDay.getDay() - 1;
     if (startDayIndex === -1) startDayIndex = 6;
 
     const calDaysContainer = document.getElementById('calendarDays');
     calDaysContainer.innerHTML = '';
 
-    // Prázdná políčka na začátku
     for (let i = 0; i < startDayIndex; i++) {
       calDaysContainer.innerHTML += `<div class="cal-day empty"></div>`;
     }
 
-    // Dny v měsíci
     const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 
     for (let day = 1; day <= lastDay.getDate(); day++) {
       const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
       const isToday = (dateKey === todayStr);
 
-      const assignedDrivers = shifts[dateKey] || [];
+      const assignedDrivers = window.shifts[dateKey] || [];
       let dotsHtml = '';
 
       assignedDrivers.forEach(dId => {
-        const drv = drivers.find(d => d.id === dId);
-        if (drv) {
-          dotsHtml += `<div class="cal-dot" style="background:${drv.color};" title="${drv.name}"></div>`;
-        }
+        const drv = window.drivers.find(d => d.id === dId);
+        if (drv) dotsHtml += `<div class="cal-dot" style="background:${drv.color};"></div>`;
       });
 
       calDaysContainer.innerHTML += `
@@ -351,11 +435,10 @@
       `;
     }
 
-    // Render Řidičů v adminu
     const driversList = document.getElementById('driversList');
     if (driversList) {
       driversList.innerHTML = '';
-      drivers.forEach(d => {
+      window.drivers.forEach(d => {
         driversList.innerHTML += `<span class="driver-badge" style="background:${d.color}">${d.name} ${isAdmin ? `<span onclick="deleteDriver('${d.id}')" style="cursor:pointer;margin-left:5px;">✕</span>` : ''}</span>`;
       });
     }
@@ -363,28 +446,24 @@
 
   function selectCalendarDate(dateKey, day) {
     selectedDateKey = dateKey;
-    const panel = document.getElementById('dayDetailPanel');
-    panel.classList.remove('hidden');
+    document.getElementById('dayDetailPanel').classList.remove('hidden');
 
     const formattedDate = `${day}. ${currentCalDate.getMonth()+1}. ${currentCalDate.getFullYear()}`;
     document.getElementById('selectedDateTitle').innerText = `📅 Směna: ${formattedDate}`;
 
-    const assignedDrivers = shifts[dateKey] || [];
+    const assignedDrivers = window.shifts[dateKey] || [];
     const infoDiv = document.getElementById('dayDriversInfo');
     
     if (assignedDrivers.length === 0) {
-      infoDiv.innerHTML = `<p style="color:#94a3b8; font-style:italic;">Na tento den není zatiaľ naplánovaná žádná směna.</p>`;
+      infoDiv.innerHTML = `<p style="color:#94a3b8; font-style:italic;">Volno.</p>`;
     } else {
       infoDiv.innerHTML = '<strong>Jedou:</strong><br>';
       assignedDrivers.forEach(dId => {
-        const drv = drivers.find(d => d.id === dId);
-        if (drv) {
-          infoDiv.innerHTML += `<span class="driver-badge" style="background:${drv.color}; font-size:0.9rem; padding:5px 12px;">${drv.name}</span> `;
-        }
+        const drv = window.drivers.find(d => d.id === dId);
+        if (drv) infoDiv.innerHTML += `<span class="driver-badge" style="background:${drv.color}; font-size:0.9rem; padding:5px 12px;">${drv.name}</span> `;
       });
     }
 
-    // Naplnění výběru pro Admina
     if (isAdmin) {
       document.getElementById('adminAssignShift').classList.remove('hidden');
       const s1 = document.getElementById('shiftDriver1');
@@ -393,7 +472,7 @@
       s1.innerHTML = '<option value="">-- Žádný --</option>';
       s2.innerHTML = '<option value="">-- Žádný --</option>';
 
-      drivers.forEach(d => {
+      window.drivers.forEach(d => {
         s1.innerHTML += `<option value="${d.id}" ${assignedDrivers[0] === d.id ? 'selected' : ''}>${d.name}</option>`;
         s2.innerHTML += `<option value="${d.id}" ${assignedDrivers[1] === d.id ? 'selected' : ''}>${d.name}</option>`;
       });
@@ -411,29 +490,24 @@
     if (d1) list.push(d1);
     if (d2 && d2 !== d1) list.push(d2);
 
-    shifts[selectedDateKey] = list;
-    localStorage.setItem('bagety_shifts_v6', JSON.stringify(shifts));
-    
-    selectCalendarDate(selectedDateKey, parseInt(selectedDateKey.split('-')[2]));
-    renderCalendar();
+    window.shifts[selectedDateKey] = list;
+    window.syncDataToFirebase();
   }
 
   function addDriver() {
     const name = document.getElementById('driverName').value;
     const color = document.getElementById('driverColor').value;
-    if(!name) return alert("Zadejte jméno řidiče");
+    if(!name) return alert("Zadejte jméno!");
 
-    drivers.push({ id: 'd_' + Date.now(), name, color });
-    localStorage.setItem('bagety_drivers_v6', JSON.stringify(drivers));
+    window.drivers.push({ id: 'd_' + Date.now(), name, color });
     document.getElementById('driverName').value = '';
-    renderCalendar();
+    window.syncDataToFirebase();
   }
 
   function deleteDriver(id) {
     if(confirm("Smazat řidiče?")) {
-      drivers = drivers.filter(d => d.id !== id);
-      localStorage.setItem('bagety_drivers_v6', JSON.stringify(drivers));
-      renderCalendar();
+      window.drivers = window.drivers.filter(d => d.id !== id);
+      window.syncDataToFirebase();
     }
   }
 
@@ -463,16 +537,13 @@
 
   function toggleAdmin() {
     if (!isAdmin) {
-      const pin = prompt("Zadejte admin heslo:");
-      if (pin === ADMIN_PIN) {
+      if (prompt("Zadejte admin heslo:") === ADMIN_PIN) {
         isAdmin = true;
         document.getElementById('authBtn').innerText = "Odhlásit";
         document.getElementById('adminCustomerPanel').classList.remove('hidden');
         document.getElementById('adminNotesPanel').classList.remove('hidden');
         document.getElementById('adminDriverPanel').classList.remove('hidden');
-      } else {
-        alert("Špatné heslo!");
-      }
+      } else alert("Špatné heslo!");
     } else {
       isAdmin = false;
       document.getElementById('authBtn').innerText = "Admin Přihlášení";
@@ -480,59 +551,28 @@
       document.getElementById('adminNotesPanel').classList.add('hidden');
       document.getElementById('adminDriverPanel').classList.add('hidden');
       document.getElementById('adminAssignShift').classList.add('hidden');
+      resetForm();
     }
     render();
-  }
-
-  function addCustomer() {
-    const day = document.getElementById('custDay').value;
-    const name = document.getElementById('custName').value;
-    const address = document.getElementById('custAddress').value;
-    const contact = document.getElementById('custContact').value;
-    const items = document.getElementById('custItems').value;
-    const returns = document.getElementById('custReturns').value;
-
-    if (!name) return alert("Vyplňte název zákazníka");
-
-    customers.push({ day, name, address, contact, items, returns });
-    localStorage.setItem('bagety_customers_v6', JSON.stringify(customers));
-    
-    document.getElementById('custName').value = '';
-    document.getElementById('custAddress').value = '';
-    document.getElementById('custContact').value = '';
-    document.getElementById('custItems').value = '';
-    document.getElementById('custReturns').value = '';
-    render();
-  }
-
-  function deleteCustomer(index) {
-    if (confirm("Opravdu smazat zákazníka?")) {
-      customers.splice(index, 1);
-      localStorage.setItem('bagety_customers_v6', JSON.stringify(customers));
-      render();
-    }
   }
 
   function addNote() {
     const text = document.getElementById('noteInput').value;
-    if (!text) return alert("Napište text poznámky");
+    if (!text) return alert("Text...");
 
-    notes.push(text);
-    localStorage.setItem('bagety_notes_v6', JSON.stringify(notes));
+    window.notes.push(text);
     document.getElementById('noteInput').value = '';
-    render();
+    window.syncDataToFirebase();
   }
 
   function deleteNote(index) {
-    if (confirm("Opravdu smazat poznámku?")) {
-      notes.splice(index, 1);
-      localStorage.setItem('bagety_notes_v6', JSON.stringify(notes));
-      render();
+    if (confirm("Smazat?")) {
+      window.notes.splice(index, 1);
+      window.syncDataToFirebase();
     }
   }
 
   initDays();
-  render();
 </script>
 </body>
 </html>
